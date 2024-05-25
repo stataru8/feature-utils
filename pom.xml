@@ -1,67 +1,62 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.talend.libraries</groupId>
+    <groupId>os.local.esb</groupId>
     <artifactId>feature-utils</artifactId>
     <version>1.0.0</version>
     <packaging>maven-plugin</packaging>
-  
+      
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <junit.jupiter.version>5.10.2</junit.jupiter.version>
         <maven.surefire.plugin.version>3.2.3</maven.surefire.plugin.version>
+        <osgi.core.version>8.0.0</osgi.core.version>
+        <felix.framework.version>7.0.5</felix.framework.version>
+        <felix.utils.version>1.11.2</felix.utils.version>
+        <karaf.deployer.features.version>4.4.6</karaf.deployer.features.version>
+        <maven.plugin.api.version>3.6.0</maven.plugin.api.version>
+        <maven.plugin.annotations.version>3.6.0</maven.plugin.annotations.version>
+        <maven.core.version>3.6.0</maven.core.version>
     </properties>
-  
+    
     <dependencies>
-      
         <dependency>
             <groupId>org.osgi</groupId>
             <artifactId>osgi.core</artifactId>
-            <version>8.0.0</version>
+            <version>${osgi.core.version}</version>
             <scope>provided</scope>
         </dependency>
-      
-       <!-- Apache Felix Framework -->
         <dependency>
             <groupId>org.apache.felix</groupId>
             <artifactId>org.apache.felix.framework</artifactId>
-            <version>7.0.5</version>
+            <version>${felix.framework.version}</version>
         </dependency>
-
-        <!-- Apache Felix Utils -->
         <dependency>
             <groupId>org.apache.felix</groupId>
             <artifactId>org.apache.felix.utils</artifactId>
-            <version>1.11.2</version>
+            <version>${felix.utils.version}</version>
         </dependency>
-      
         <dependency>
             <groupId>org.apache.karaf.deployer</groupId>
             <artifactId>org.apache.karaf.deployer.features</artifactId>
-            <version>4.4.6</version>
+            <version>${karaf.deployer.features.version}</version>
         </dependency>
-
-
-        <!-- plugin stuff -->
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-plugin-api</artifactId>
-            <version>3.6.0</version>
+            <version>${maven.plugin.api.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.maven.plugin-tools</groupId>
             <artifactId>maven-plugin-annotations</artifactId>
-            <version>3.6.0</version>
+            <version>${maven.plugin.annotations.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-core</artifactId>
-            <version>3.6.0</version>
+            <version>${maven.core.version}</version>
         </dependency>
-        
-      
-        <!-- JUnit 5 dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -74,12 +69,10 @@
             <version>${junit.jupiter.version}</version>
             <scope>test</scope>
         </dependency>
-        
     </dependencies>
-
+    
     <build>
         <plugins>
-        <!-- Surefire plugin for running tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -88,7 +81,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-plugin-plugin</artifactId>
-                <version>3.6.0</version>
+                <version>${maven.plugin.api.version}</version>
                 <executions>
                     <execution>
                         <id>default-descriptor</id>
@@ -100,5 +93,4 @@
             </plugin>
         </plugins>
     </build>
-  
 </project>

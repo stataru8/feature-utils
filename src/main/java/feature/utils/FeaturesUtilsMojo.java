@@ -1,26 +1,22 @@
 package feature.utils;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
-import org.apache.maven.project.MavenProject;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.MavenProject;
 import org.osgi.framework.Version;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 @Mojo(name = "update-versions", defaultPhase = LifecyclePhase.PROCESS_SOURCES)
 public class FeaturesUtilsMojo extends AbstractMojo {
@@ -28,10 +24,11 @@ public class FeaturesUtilsMojo extends AbstractMojo {
     @Parameter(property = "featuresFilePath", required = true)
     private String featuresFilePath;
 
-    @Parameter(property = "targetFeature", required = true)
+    @Parameter(property = "targetFeature", required = false)
     private String targetFeature = null;
     
-    private static final String pomFilePath = "C:\\Users\\stataru\\Documents\\gitTalend\\camel-karaf\\pom.xml";
+    @Parameter(defaultValue = "${project}", readonly = true, required = true)
+    private MavenProject project;
 	
 	public static final List<String> OSGI_HEADERS_AFTER_BUNDLE_VEIRSION = Arrays.asList(
 	        //"Bundle-Version",
@@ -48,29 +45,41 @@ public class FeaturesUtilsMojo extends AbstractMojo {
 	
 	@Override
     public void execute() throws MojoExecutionException {
-	    // Define the pattern with wildcards
-	    Pattern wrapPattern = Pattern.compile("^<bundle.*wrap:mvn:.*</bundle>$");
-	    
-	    try {
-	        // Read all lines from the file
-	        List<String> lines = Files.readAllLines(Paths.get(featuresFilePath));
-	        
-	        // Edit the lines
-	        List<String> modifiedLines = lines.stream().map(line -> {
-	            if(targetFeature != null) {
-	                
-	                
-	                Pattern featurePattern = Pattern.compile("^<feature.*"+ targetFeature +".*>$");
-	                
-	                
-	            } else {
-	                
-	            }
-	            return processAllfeatures(wrapPattern, line);
-	        }).collect(Collectors.toList());
+        try {
+            // Read all lines from the file
+            List<String> lines = Files.readAllLines(Paths.get(featuresFilePath));
+
+            int firstIndex = 0;
+            int lastIndex = lines.size()-1;
+            if (targetFeature != null) {
+                Pattern featureStartPattern = Pattern.compile("^<feature.*" + targetFeature + ".*>$");
+                Pattern featureEndPattern = Pattern.compile("^</feature>$");
+                
+                for (int i = 0; i < lines.size(); i++) {
+                    Matcher featureStartMatcher = featureStartPattern.matcher(lines.get(i).trim());
+                    if(featureStartMatcher.matches()) {
+                        firstIndex = i + 1;
+                    }
+                    
+                    // start of the feature alrady found
+                    if(firstIndex != 0) {                        
+                        Matcher featureEndMatcher = featureEndPattern.matcher(lines.get(i).trim());
+                        if(featureEndMatcher.matches()) {
+                            lastIndex = i - 1;
+                            break;
+                        }
+                    }
+                }
+                
+                if (firstIndex == 0) {
+                    getLog().error(String.format("Feature %s not found, no lines will be processed", targetFeature));
+                    return;
+                }
+            }
+            modifyLines(lines, firstIndex, lastIndex);
 	        
 	        // Write the modified lines back to the file
-	        Files.write(Paths.get(featuresFilePath), modifiedLines);
+	        Files.write(Paths.get(featuresFilePath), lines);
 	        
 	        getLog().info("File updated successfully.");
 	    } catch (IOException e) {
@@ -78,38 +87,42 @@ public class FeaturesUtilsMojo extends AbstractMojo {
 	    }        
     }
 
-    private String processAllfeatures(Pattern wrapPattern, String line) {
-        // Create a Matcher object
-        Matcher matcher = wrapPattern.matcher(line.trim());
-        if (matcher.matches()) {
-            return addVersionToWrapProtocol(line);
+    private void modifyLines(List<String> lines, int firstIndex, int lastIndex) {
+
+        // Define the pattern with wildcards
+        Pattern wrapPattern = Pattern.compile("^<bundle.*wrap:mvn:.*</bundle>$");
+
+        // Edit the lines
+        for (int i = firstIndex; i <= lastIndex; i++) {
+            // Create a Matcher object
+            Matcher matcher = wrapPattern.matcher(lines.get(i).trim());
+            if (matcher.matches()) {
+                lines.set(i, addVersionToWrapProtocol(lines.get(i)));
+            }
         }
-        
-        return line;
     }
 
 	private String addVersionToWrapProtocol(String line) {
-
-		
-		int versionStartIndex = getVersionFirstIndex(line); 
+        int versionStartIndex = getVersionFirstIndex(line); 
 		int versionEndIndex = getVersionEndIndex(line, versionStartIndex);
-		
 		
 		String version = getVersion(line, versionStartIndex, versionEndIndex);
 		try {
-		    String resolvedVersion = (version.charAt(0) == '$') ? getPropertyValueFromPom(pomFilePath, version) : version;
+		    String resolvedVersion = (version.charAt(0) == '$') ? getPropertyValueFromPom(version) : version;
 		    try {
-		        
 		        //String sanitizedVersion = VersionCleaner.clean(resolvedVersion);
-		        
 		        new Version(resolvedVersion);// test if it will work in the Karaf container!
 		    } catch (Exception e ) {
-		        String message = String.format("Line '%s' was ignored because %s is not a valid OSGi Version: %s", line, resolvedVersion, e.getMessage());
-		        getLog().error(message);      
+		        String message = String.format("Line '%s' was ignored because '%s' is not a valid OSGi Version: %s", line, resolvedVersion, e.getMessage());
+		        getLog().warn(message);      
 		        return line;
 		    }		    
 		} catch (Exception e ) {
-		    String message = String.format("Line '%s' was ignored because failed to read value of placeholder %s from location %s is not a valid OSGi Version: %s", line, version, pomFilePath, e.getMessage());
+		    StringWriter sw = new StringWriter();
+		    PrintWriter pw = new PrintWriter(sw);
+		    e.printStackTrace(pw);
+		    String sStackTrace = sw.toString(); // stack trace as a string
+		    String message = String.format("Line '%s' was ignored because it wasn't possible to read value of placeholder '%s' from location %s: %s", line, clearPlaceHolderChars(version), project, sStackTrace);
 		    getLog().error(message);      
             return line;   
 		}
@@ -232,43 +245,21 @@ public class FeaturesUtilsMojo extends AbstractMojo {
 		return -1;
 	}
 	
-	@Parameter(defaultValue = "${project}", readonly = true, required = true)
-    private MavenProject project;
-	
-	String getPropertyValueFromPom(String placeholder) throws Exception {
-	    return getPropertyValueFromPom(placeholder, null);
-	}
-	
-	String getPropertyValueFromPom(String placeholder, String pomFilePath) throws Exception {
+	private String getPropertyValueFromPom(String placeholder) throws Exception {
         // Extract the property name from the placeholder
-        String propertyName = placeholder.substring(2, placeholder.length() - 1);
+        String propertyName = clearPlaceHolderChars(placeholder);
 
-        // tests only ?
-        if (null != pomFilePath) {
-            // Parse the pom.xml file
-            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-            Document doc = dBuilder.parse(pomFilePath);
-            doc.getDocumentElement().normalize();
-            
-            // Find the properties element
-            Element propertiesElement = (Element) doc.getElementsByTagName("properties").item(0);
-            if (propertiesElement != null) {
-                // Get the property value
-                String propertyValue = propertiesElement.getElementsByTagName(propertyName).item(0).getTextContent();
-                return propertyValue;
-            } else {
-                throw new Exception(String.format("Properties element <%s> not found in pom.xml", propertyName));
-            }   
-            
+        String propertyValue = project.getProperties().getProperty(propertyName);
+        
+        if (propertyValue != null) {
+            return propertyValue;
         } else {
-            String propertyValue = project.getProperties().getProperty(propertyName);
-            if (propertyValue != null) {
-                return propertyValue;
-            } else {
-                throw new Exception(String.format("Property <%s> not found in pom.xml", propertyName));
-            }
+            throw new Exception(String.format("Property <%s> not found in pom.xml", propertyName));
         }
+    }
+
+    private String clearPlaceHolderChars(String placeholder) {
+        return placeholder.substring(2, placeholder.length() - 1);
     }
 	
 }

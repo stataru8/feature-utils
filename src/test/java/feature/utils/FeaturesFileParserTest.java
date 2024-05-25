@@ -133,11 +133,4 @@ public class FeaturesFileParserTest {
     	assertEquals("${grpc-version}", FeaturesUtilsMojo.getVersion("<bundle dependency='true'>wrap:mvn:io.grpc/grpc-core/${grpc-version}$${spi-provider}</bundle>"));
     }
     
-//    @Test
-//    void getPropertyValueFromPomTest() throws Exception{
-//        String value = FeaturesUtilsMojo.getPropertyValueFromPom(pomFilePath, "${google-api-services-drive-version}");
-//        
-//        assertEquals("v3-rev20240123-2.0.0", value);
-//        
-//    }
 }
