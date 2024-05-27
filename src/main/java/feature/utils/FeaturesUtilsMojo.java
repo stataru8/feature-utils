@@ -138,6 +138,7 @@ public class FeaturesUtilsMojo extends AbstractMojo {
 		        new Version(resolvedVersion);// test if it will work in the Karaf container!
 		        
 		    } catch (Exception e ) {
+		        // TODO: only use cleanVersion if the artifact is non-osgi
 		        
 		        String cleanVersion = org.apache.felix.utils.version.VersionCleaner.clean(resolvedVersion);
 		        try {
