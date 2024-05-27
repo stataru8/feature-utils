@@ -16,10 +16,6 @@ public class FeaturesFileParserTest {
 
     private static final String bundleVersion = "Bundle-Version=9.9.9";
     
-    private static final String featuresFilePath = "C:\\Users\\stataru\\Documents\\gitTalend\\camel-karaf\\features\\src\\main\\feature\\camel-features.xml";
-    private static final String pomFilePath = "C:\\Users\\stataru\\Documents\\gitTalend\\camel-karaf\\pom.xml";
-    
-    
     @Test
     void osgiVersionTest() {
         String versionValue = "v3-rev20240123-2.0.0"; 
