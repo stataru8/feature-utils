@@ -1,12 +1,16 @@
 package feature.utils;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,8 +21,29 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.osgi.framework.Version;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.model.Repository;
+import org.apache.maven.model.building.DefaultModelBuilderFactory;
+import org.apache.maven.model.building.DefaultModelBuildingRequest;
+import org.apache.maven.model.building.ModelBuildingRequest;
+import org.apache.maven.model.resolution.ModelResolver;
+import org.eclipse.aether.RepositorySystem;
+import org.eclipse.aether.RepositorySystemSession;
+import org.eclipse.aether.artifact.Artifact;
+import org.eclipse.aether.artifact.DefaultArtifact;
+import shaded.org.eclipse.aether.connector.basic.BasicRepositoryConnectorFactory;
+import org.eclipse.aether.impl.DefaultServiceLocator;
+import org.eclipse.aether.impl.DefaultServiceLocator.ErrorHandler;
+import org.eclipse.aether.repository.RemoteRepository;
+import org.eclipse.aether.resolution.ArtifactRequest;
+import org.eclipse.aether.resolution.ArtifactResolutionException;
+import org.eclipse.aether.resolution.ArtifactResult;
 
-@Mojo(name = "update-versions", defaultPhase = LifecyclePhase.PROCESS_SOURCES)
+import java.util.ArrayList;
+import java.util.List;
+
+
+@Mojo(name = "ensure-wrap-bundle-version", defaultPhase = LifecyclePhase.PROCESS_SOURCES)
 public class FeaturesUtilsMojo extends AbstractMojo {
 
     @Parameter(property = "featuresFilePath", required = true)
@@ -110,19 +135,31 @@ public class FeaturesUtilsMojo extends AbstractMojo {
 		try {
 		    String resolvedVersion = (version.charAt(0) == '$') ? getPropertyValueFromPom(version) : version;
 		    try {
-		        //String sanitizedVersion = VersionCleaner.clean(resolvedVersion);
 		        new Version(resolvedVersion);// test if it will work in the Karaf container!
+		        
 		    } catch (Exception e ) {
-		        String message = String.format("Line '%s' was ignored because '%s' is not a valid OSGi Version: %s", line, resolvedVersion, e.getMessage());
-		        getLog().warn(message);      
-		        return line;
+		        
+		        String cleanVersion = org.apache.felix.utils.version.VersionCleaner.clean(resolvedVersion);
+		        try {
+		            new Version(cleanVersion);// test if it will work in the Karaf container again!
+		            // WARN: placeholder for version will be removed here
+		            String messagePlaceholder = (version.charAt(0) == '$') ? ". Placeholder from artifact version was replaced with value from clean function" : ".";
+		            String message = String.format("Line '%s' was set with Bundle-Version '%s', the output of org.apache.felix.utils.version.VersionCleaner.clean(%s)%s", line, cleanVersion, resolvedVersion, messagePlaceholder);
+		            getLog().warn(message);
+		            
+		            version = cleanVersion;
+		        } catch (Exception e2 ) {
+		            String message = String.format("Line '%s' was ignored because '%s' is not a valid OSGi Version: %s", line, cleanVersion, e.getMessage());
+		            getLog().warn(message);      
+		            return line;		            
+		        }		        
 		    }		    
 		} catch (Exception e ) {
 		    StringWriter sw = new StringWriter();
 		    PrintWriter pw = new PrintWriter(sw);
 		    e.printStackTrace(pw);
 		    String sStackTrace = sw.toString(); // stack trace as a string
-		    String message = String.format("Line '%s' was ignored because it wasn't possible to read value of placeholder '%s' from location %s: %s", line, clearPlaceHolderChars(version), project, sStackTrace);
+		    String message = String.format("Line '%s' was ignored because it wasn't possible to read value of placeholder '%s' from '%s': %s", line, clearPlaceHolderChars(version), project, sStackTrace);
 		    getLog().error(message);      
             return line;   
 		}
@@ -261,5 +298,50 @@ public class FeaturesUtilsMojo extends AbstractMojo {
     private String clearPlaceHolderChars(String placeholder) {
         return placeholder.substring(2, placeholder.length() - 1);
     }
-	
+/*
+    public String getBundleVersionFromManifest(String line) throws IOException {
+        
+        try (JarFile jarFile = new JarFile(downloadJarFile(artifactUrl))) {
+            Manifest manifest = jarFile.getManifest();
+            if (manifest != null) {
+                String bundleVersion = manifest.getMainAttributes().getValue("Bundle-Version");
+                if (bundleVersion != null) {
+                    System.out.println("Artifact is an OSGi bundle.");
+                    // You can further inspect the Manifest for other OSGi-specific headers
+                } else {
+                    System.out.println("Artifact is not an OSGi bundle.");
+                }
+            } else {
+                System.out.println("Manifest file not found. Cannot determine if the artifact is an OSGi bundle.");
+            }
+        }
+        
+        return null;
+    }
+
+    public static InputStream downloadJarFile(String artifactUrl) throws IOException {
+        URL url = new URL(artifactUrl);
+        return url.openStream();
+    }
+    private static RepositorySystem newRepositorySystem() {
+        DefaultServiceLocator locator = MavenRepositorySystemUtils.newServiceLocator();
+        locator.setErrorHandler(new ErrorHandler() {
+            public void serviceCreationFailed(Class<?> type, Class<?> impl, Throwable ex) {
+                throw new IllegalStateException(ex);
+            }
+        });
+        return locator.getService(RepositorySystem.class);
+    }
+
+    private static RepositorySystemSession newSession(RepositorySystem system) {
+        DefaultRepositorySystemSession session = MavenRepositorySystemUtils.newSession();
+
+        // Set up the repositories from the Maven settings
+        for (Repository repository : MavenRepositorySystemUtils.loadSettings().getRepositories()) {
+            RemoteRepository.Builder builder = new RemoteRepository.Builder(repository.getId(), "default", repository.getUrl());
+            remoteRepos.add(builder.build());
+        }
+
+        return session;
+    } */
 }

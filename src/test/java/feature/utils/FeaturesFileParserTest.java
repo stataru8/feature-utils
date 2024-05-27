@@ -19,6 +19,29 @@ public class FeaturesFileParserTest {
     private static final String featuresFilePath = "C:\\Users\\stataru\\Documents\\gitTalend\\camel-karaf\\features\\src\\main\\feature\\camel-features.xml";
     private static final String pomFilePath = "C:\\Users\\stataru\\Documents\\gitTalend\\camel-karaf\\pom.xml";
     
+    
+    @Test
+    void osgiVersionTest() {
+        String versionValue = "v3-rev20240123-2.0.0"; 
+        
+        // will result in exception
+        String proposal1 = "0.0.0" + versionValue;
+        //new Version(proposal1);
+        
+        // will result in exception
+        String proposal2 = "0.0.0." + versionValue;
+        //new Version(proposal2);
+        
+        String proposal3 = org.apache.felix.utils.version.VersionCleaner.clean(versionValue);
+        new Version(proposal3);
+        assertEquals("0.0.0.v3-rev20240123-2_0_0", proposal3); 
+        
+        // Bundle-Version header in MANIFEST.MF
+        String guavaVersion = "33.2.0-jre";
+        String cleanGuavaVersion = org.apache.felix.utils.version.VersionCleaner.clean(guavaVersion);
+        assertEquals("33.2.0.jre", cleanGuavaVersion);
+    }
+    
     /*
      * Test  rejex
      * 
